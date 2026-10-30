@@ -1,131 +1,128 @@
-# 💱 Revolut FX Live Platform - Real-Time Foreign Exchange Engine
+# 💱 Revolut FX Live Platform
 
-![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet)
-![Next.js](https://img.shields.io/badge/Frontend-Next.js%2015-000000?logo=next.js)
-![SignalR](https://img.shields.io/badge/RealTime-SignalR-blue?logo=dotnet)
-![Redis](https://img.shields.io/badge/Cache-Redis%20%2B%20Fallback-DC382D?logo=redis)
-![TypeScript](https://img.shields.io/badge/Language-TypeScript-3178c6?logo=typescript)
+<p align="center">
+  <img alt=".NET 8" src="https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet" />
+  <img alt="Next.js 16" src="https://img.shields.io/badge/Frontend-Next.js%2016-000000?logo=next.js" />
+  <img alt="SignalR" src="https://img.shields.io/badge/Realtime-SignalR-0078D4?logo=dotnet" />
+  <img alt="Redis" src="https://img.shields.io/badge/Cache-Redis-DC382D?logo=redis" />
+  <img alt="TypeScript" src="https://img.shields.io/badge/Language-TypeScript-3178C6?logo=typescript" />
+</p>
 
-Uma plataforma de negociação e acompanhamento de câmbio de moedas internacionais em tempo real inspirada no **Revolut**. O sistema combina um backend **.NET 8 Web API** de altíssima performance, comunicação bidirecional em tempo real com **SignalR**, camada de cache híbrida **Redis / In-Memory Fallback**, e uma interface **Next.js 15** em estilo *Glassmorphism*.
+A modern FX dashboard inspired by Revolut, built with a .NET backend and a Next.js frontend for real-time currency tracking, live conversions, and market simulation.
 
----
+## Overview
 
-## 🏛️ System Design & Arquitetura de Software
+This project simulates a real-time foreign exchange platform where rates are polled periodically, cached, and pushed to the client through SignalR websockets. It includes:
 
-O sistema adota uma arquitetura orientada a eventos para streaming de dados em tempo real com tolerância a falhas.
+- live FX rate streaming
+- Redis caching with in-memory fallback
+- simulated price conversion with a 30-second rate freeze
+- interactive market charts
+- real-time infrastructure status panel
+- modern glassmorphism-style dashboard
 
-```mermaid
-flowchart TB
-    subgraph Client ["Client Layer (Frontend)"]
-        NextJS["Next.js 15 (React 19)\nUI Glassmorphic Vercel Style"]
-        SignalRClient["SignalR WebSockets Client"]
-        ChartUI["Recharts Interactive FX Chart"]
-    end
-
-    subgraph API ["Application Layer (.NET 8 Web API)"]
-        Gateway["ASP.NET Core Controllers & Endpoints"]
-        SignalRHub["CurrencyHub (SignalR WebSockets)"]
-        BackgroundWorker["CurrencyBackgroundWorker\n(Polling a cada 3s)"]
-        CurrencyService["CurrencyService\n(Calculadora & Conversão)"]
-    end
-
-    subgraph Caching ["Resilience & Cache Layer"]
-        RedisCache["Redis Cache Server (6379)\n(High Frequency Rate Store)"]
-        MemoryCache["In-Memory Cache (IMemoryCache)\n(Automatic Resilient Fallback)"]
-    end
-
-    subgraph External ["External Services"]
-        AwesomeAPI["AwesomeAPI / External FX Rates API"]
-    end
-
-    AwesomeAPI -->|HTTP Polling (3s)| BackgroundWorker
-    BackgroundWorker -->|Update Cache| RedisCache
-    RedisCache -.->|Fallback on Disconnect| MemoryCache
-    BackgroundWorker -->|Broadcast 'ReceiveRateUpdate'| SignalRHub
-    SignalRHub -->|WebSocket Connection| SignalRClient
-    SignalRClient --> NextJS
-    NextJS --> ChartUI
-    NextJS -->|REST API / Convert & Lock Rates| Gateway
-    Gateway --> CurrencyService
-    CurrencyService --> RedisCache
-```
-
----
-
-## ⚡ Principais Funcionalidades
-
-- 🔴 **Live FX Rate Streaming:** Polling em background e transmissão contínua de cotações em tempo real via WebSockets (SignalR).
-- 🛡️ **Resiliência Multi-Camada de Cache:**
-  - **Redis Cache:** Armazenamento primário de alta velocidade para suportar alto volume de consultas simultâneas.
-  - **In-Memory Fallback:** Troca transparente e automática para o cache local na memória do .NET caso o Redis fique offline.
-- 🔒 **Garantia & Freeze de Taxa de Câmbio:** Congelamento da cotação por 30 segundos ao solicitar conversão para proteção contra volatilidade do mercado.
-- 📊 **Gráficos Interativos & Ticker:** Histórico de variações de taxas em alta frequência com visualização gráfica interativa (`Recharts`).
-- 💎 **Interface Premium Glassmorphic:** Design escuro moderno com transparências, cartões interativos e feedback visual imediato de altas e baixas das moedas.
-
----
-
-## 🔁 Fluxo de Atualização de Cotação em Tempo Real
+## Architecture
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    actor External as External FX Provider
-    participant Worker as Background Worker (.NET)
-    participant Redis as Redis / Fallback Cache
-    participant Hub as SignalR Hub
-    participant FE as Next.js Frontend UI
-
-    loop A cada 3 Segundos
-        Worker->>External: Fetch cotacoes atualizadas (USD/BRL, EUR/USD, etc.)
-        External-->>Worker: Retorna cotacoes recentes
-        Worker->>Redis: Atualiza chaves com TTL de expiracao
-        Worker->>Hub: BroadcastEvent("ReceiveRateUpdate", rates)
-        Hub-->>FE: Stream de dados via WebSockets
-        FE->>FE: Atualiza cartoes e graficos (efeito flash verde/vermelho)
+flowchart LR
+    subgraph Frontend[Frontend - Next.js]
+        UI[Dashboard UI]
+        WS[SignalR Client]
+        Chart[Charts & Widgets]
     end
+
+    subgraph Backend[Backend - ASP.NET Core]
+        API[RatesController]
+        HUB[CurrencyHub]
+        Worker[CurrencyBackgroundWorker]
+        Service[CurrencyService]
+    end
+
+    subgraph Cache[Cache Layer]
+        Redis[(Redis)]
+        Memory[(In-Memory Cache)]
+    end
+
+    External[External FX API] --> Worker
+    Worker --> Redis
+    Redis -. fallback .-> Memory
+    Worker --> HUB
+    HUB --> WS
+    WS --> UI
+    UI --> API
+    API --> Service
+    Service --> Redis
 ```
 
----
+## Main Features
 
-## 🛠️ Tecnologias Utilizadas
+- Real-time FX rates streaming every few seconds
+- SignalR integration for instant frontend updates
+- Redis-backed cache with resilient fallback logic
+- Currency conversion with fee calculation and guaranteed rate lock for 30 seconds
+- History and chart generation for multiple time windows
+- Dashboard UI that mirrors a live trading/finance experience
+- API health/status endpoint for infrastructure monitoring
 
-### Backend (.NET 8)
-- **Framework:** ASP.NET Core Web API (.NET 8)
-- **Real-Time Engine:** SignalR (WebSockets)
-- **Caching & Caching Strategy:** StackExchange.Redis + `IMemoryCache` Fallback Strategy
-- **Documentação API:** Swagger / OpenAPI
-- **Background Tasks:** `IHostedService` (`CurrencyBackgroundWorker`)
+## Tech Stack
 
-### Frontend (Next.js 15)
-- **Framework:** Next.js 15 (App Router, React 19)
-- **WebSockets Client:** `@microsoft/signalr`
-- **Data Visualization:** `Recharts`
-- **UI Components & Icons:** TailwindCSS v4, Lucide React Icons
+### Backend
+- .NET 8
+- ASP.NET Core Web API
+- SignalR
+- Swagger / OpenAPI
+- Redis via StackExchange.Redis
+- Background hosted services
 
----
+### Frontend
+- Next.js 16
+- React 19
+- TypeScript
+- Recharts
+- Tailwind CSS
+- Lucide icons
 
-## 🚀 Como Executar o Projeto
+### Infrastructure
+- Docker Compose
+- Redis container
+- Local development environment
 
-### 1. Pré-requisitos
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-- [Node.js 18+](https://nodejs.org/)
-- [Docker Desktop](https://www.docker.com/) (opcional, para executar o Redis)
+## Repository Structure
 
----
+```bash
+.NET_pagamentos/
+├── backend/
+│   ├── Controllers/
+│   ├── Hubs/
+│   ├── Models/
+│   ├── Services/
+│   ├── Properties/
+│   ├── Backend.csproj
+│   ├── Program.cs
+│   └── appsettings*.json
+├── frontend/
+│   ├── src/
+│   ├── public/
+│   ├── package.json
+│   ├── next.config.ts
+│   ├── tsconfig.json
+│   └── README.md
+├── docker-compose.yml
+├── README.md
+└── LICENSE
+```
 
-### 2. Subir a Infraestrutura (Redis)
+## Getting Started
 
-Você pode rodar o Redis rapidamente via Docker:
+### 1. Start Redis
 
 ```bash
 docker-compose up -d
 ```
 
-> *Nota: Se o Docker/Redis não for iniciado, o backend utilizará automaticamente o **In-Memory Cache Fallback** sem interromper o funcionamento.*
+This starts the Redis container used by the application. If Redis is unavailable, the backend automatically falls back to in-memory cache mode.
 
----
-
-### 3. Backend (.NET 8 Web API)
+### 2. Run the backend
 
 ```bash
 cd backend
@@ -133,11 +130,14 @@ dotnet restore
 dotnet run
 ```
 
-> O backend estará acessível em `http://localhost:5000` (Swagger disponível em `http://localhost:5000/swagger`).
+The API will be available at:
 
----
+- http://localhost:5000/api
+- Swagger UI: http://localhost:5000/swagger
 
-### 4. Frontend (Next.js)
+> If your local .NET profile uses a different port, update the frontend environment accordingly.
+
+### 3. Run the frontend
 
 ```bash
 cd frontend
@@ -145,20 +145,64 @@ npm install
 npm run dev
 ```
 
-> A aplicação frontend abrirá em `http://localhost:3000`.
+Then open:
 
----
+- http://localhost:3000
 
-## 📊 Endpoints Principais da API REST
+The frontend is configured to call the backend at `http://localhost:5000/api` by default. You can override it with:
 
-| Método | Rota | Descrição |
+```bash
+NEXT_PUBLIC_API_URL=http://localhost:5000/api
+```
+
+## API Endpoints
+
+| Method | Route | Description |
 |---|---|---|
-| `GET` | `/api/currency/rates` | Obtém todas as cotações ativas no cache |
-| `POST` | `/api/currency/convert` | Executa a simulação de conversão com garantia de taxa |
-| `GET` | `/api/currency/status` | Retorna o status de integridade da API e a conexão com o Redis |
+| `GET` | `/api/rates` | Returns all active exchange rates from cache |
+| `GET` | `/api/rates/{from}/{to}` | Returns a single currency pair |
+| `POST` | `/api/rates/convert` | Converts an amount using the latest rate and fee logic |
+| `GET` | `/api/rates/history` | Returns historical points for a pair and period |
+| `GET` | `/api/rates/status` | Returns cache and infrastructure status |
+| `GET` | `/hubs/currency` | SignalR hub used for real-time updates |
+
+### Example requests
+
+```bash
+curl http://localhost:5000/api/rates
+curl "http://localhost:5000/api/rates/history?pair=USD/BRL&period=1D"
+curl -X POST http://localhost:5000/api/rates/convert \
+  -H "Content-Type: application/json" \
+  -d '{"from":"USD","to":"BRL","amount":100}'
+```
+
+## Business Logic Highlights
+
+- Background polling updates currency values regularly
+- Rates are stored in Redis for fast access and high concurrency
+- If Redis disconnects, the application switches to a resilient in-memory cache without breaking the API
+- Each conversion uses a current exchange rate and applies a 0.5% fee
+- The effective rate is “frozen” for 30 seconds to reduce volatility exposure
+
+## Screenshots / Experience
+
+The frontend presents a premium trading dashboard with:
+
+- live ticker bar
+- market cards for major FX pairs
+- interactive chart area
+- conversion widget
+- transaction receipt modal
+- infrastructure health monitoring
+
+## License
+
+This project is licensed under the MIT License.
+
+## Contributing
+
+Contributions are welcome. If you'd like to improve the dashboard, add more markets, or extend the backend, feel free to open a pull request.
 
 ---
 
-## 📄 Licença
-
-Este projeto está sob a licença MIT. Sinta-se livre para utilizar e aprimorar.
+Built with .NET + Next.js for a real-time Forex experience.
